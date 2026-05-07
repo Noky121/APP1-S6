@@ -57,7 +57,7 @@ class MyCallbacks : public BLECharacteristicCallbacks {
   void onWrite(BLECharacteristic *pCharacteristic) {
 
     String value = pCharacteristic->getValue();
-    Serial.println("Requête reçue du client");
+    Serial.println("Request received from client");
     if (value.length() > 0 && value[0] == 1) {
       String dataToSend =
         "L:"  + String(luxValue, 1) + "lx" +
@@ -68,7 +68,7 @@ class MyCallbacks : public BLECharacteristicCallbacks {
         "|WD:" + windDirValue +
         "|R:" + String(rainValue, 2) + "mm";
 
-      Serial.println("Envoi BLE : " + dataToSend);
+      Serial.println("Sent BLE : " + dataToSend);
 
       pTxCharacteristic->setValue(dataToSend.c_str());
       pTxCharacteristic->notify();
@@ -104,12 +104,12 @@ void setup(){
 
   // ---------- DPS310 ----------
   if (!dps.begin_I2C()) {
-    Serial.println("Capteur DPS310 non détecté !");
+    Serial.println("sensor DPS310 non detected !");
     while (1);
   }
 
-  Serial.println("DPS310 prêt !");
-  Serial.println("Station meteo termine...");
+  Serial.println("DPS310 ready !");
+  Serial.println("Meteo station ready...");
 
   Serial.println("Initialisation Sensors Station E26...");
   BLEDevice::init("UART Sensors Station E26");
@@ -141,14 +141,14 @@ void setup(){
 
   Serial.println("BLE started.");
 
-  Serial.println("Setup termine.");
+  Serial.println("Setup finished.");
 }
 
 void loop () {
    // Lecture générale toutes les 2 secondes
   if (millis() - lastSensorRead >= 2000) {
 
-    Serial.println("\n==============================");
+    Serial.println("==============================");
 
     lumino_reader();
 
@@ -159,7 +159,8 @@ void loop () {
     wind_water_orientation_sensor();
 
     if (deviceConnected) {
-      pTxCharacteristic->setValue("Nouvelles données disponibles");
+      Serial.println("Notify NEW_DATA Available");
+      pTxCharacteristic->setValue("NEW_DATA Available");
       pTxCharacteristic->notify();
     }
 
@@ -187,7 +188,7 @@ void loop () {
 void lumino_reader() {
   int valeur = analogRead(capteurPin);
   
-  Serial.print("Intensite lumineuse RAW: ");
+  Serial.print("Light intensity (RAW): ");
   Serial.print(valeur);
 
   float voltage = (valeur / 4095.0) * 3.3;
@@ -206,7 +207,7 @@ void lumino_reader() {
   // Serial.print(resistance);
   // Serial.println(" ohms");
 
-  Serial.print(" Ensoillement : " );
+  Serial.print(" Sunshine : " );
   Serial.print(luxValue);
   Serial.println(" lux");
 }
@@ -244,7 +245,7 @@ void humidify_reader(){
     } while (pulse != 0);
   
     if (i != 42) 
-      Serial.printf(" Erreur timing \n"); 
+      Serial.printf("timing Error \n"); 
 
     for (i=0; i<5; i++) {
       data[i] = 0;
@@ -257,7 +258,7 @@ void humidify_reader(){
     }
 
     if ( (data[0] + data[1] + data[2] + data[3]) != data[4] ) 
-      Serial.println(" Erreur checksum");
+      Serial.println("checksum Error");
 
     humidifyValue = data[0] + (data[1] / 256.0);
     temperatureValue = data [2] + (data[3] / 256.0);
@@ -276,11 +277,11 @@ void barometer_reader(){
   float temperature = temp_event.temperature;   // °C
   pressureValue = pressure_event.pressure * 100;     // Pa
 
-  Serial.print("Température: ");
+  Serial.print("Temperature: ");
   Serial.print(temperature);
   Serial.println(" °C");
 
-  Serial.print("Pression: ");
+  Serial.print("Pressure: ");
   Serial.print(pressureValue);
   Serial.println(" Pa");
 }
@@ -307,22 +308,23 @@ void wind_water_orientation_sensor(){
     int dirRaw = analogRead(pinWindDir);
     windDirValue = getWindDirection(dirRaw);
     // Affichage
-    Serial.print("Vitesse Vent : "); Serial.print(windSpeedValue); Serial.println(" km/h");
+    Serial.print("Wind Speed : "); Serial.print(windSpeedValue); Serial.println(" km/h");
     Serial.print("Direction (Raw) : "); Serial.println(dirRaw);
     Serial.print("Direction : "); Serial.println(windDirValue);
-    Serial.print("Pluie : "); Serial.print(rainValue); Serial.println(" mm");
+    Serial.print("Rain : "); Serial.print(rainValue); Serial.println(" mm");
 }
 
 // =====================================================
 // DIRECTION VENT
 // =====================================================
 String getWindDirection(int value) {
-  if (value < 500) return "N";
-  else if (value < 1000) return "NE";
-  else if (value < 1500) return "E";
-  else if (value < 2000) return "SE";
-  else if (value < 2500) return "S";
-  else if (value < 3000) return "SO";
-  else if (value < 3500) return "O";
-  else return "NO";
+
+  if (value < 500) return "S";
+  else if (value < 1000) return "SW";
+  else if (value < 1500) return "W";
+  else if (value < 2000) return "NW";
+  else if (value < 2500) return "N";
+  else if (value < 3000) return "NE";
+  else if (value < 3500) return "E";
+  else return "SE";
 }
