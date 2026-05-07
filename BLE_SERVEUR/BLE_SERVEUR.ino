@@ -65,7 +65,7 @@ class MyCallbacks : public BLECharacteristicCallbacks {
         "|T:" + String(temperatureValue, 1) + "C" +
         "|P:" + String(pressureValue, 0) + "Pa" +
         "|WS:" + String(windSpeedValue, 1) + "km/h" +
-        "|WD:" + windDirValue + "deg" +
+        "|WD:" + windDirValue +
         "|R:" + String(rainValue, 2) + "mm";
 
       Serial.println("Envoi BLE : " + dataToSend);
@@ -113,6 +113,7 @@ void setup(){
 
   Serial.println("Initialisation Sensors Station E26...");
   BLEDevice::init("UART Sensors Station E26");
+  BLEDevice::setMTU(200);
 
   pServer = BLEDevice::createServer();
   pServer->setCallbacks(new MyServerCallbacks());
@@ -132,6 +133,7 @@ void setup(){
                         CHARACTERISTIC_UUID_RX,
                         BLECharacteristic::PROPERTY_WRITE
                       );
+  pRxCharacteristic->setCallbacks(new MyCallbacks());
 
   pService->start();
 
@@ -155,8 +157,6 @@ void loop () {
     barometer_reader();
 
     wind_water_orientation_sensor();
-
-    Serial.println("==============================");
 
     if (deviceConnected) {
       pTxCharacteristic->setValue("Nouvelles données disponibles");
@@ -206,7 +206,7 @@ void lumino_reader() {
   // Serial.print(resistance);
   // Serial.println(" ohms");
 
-  Serial.print("Ensoillement : " );
+  Serial.print(" Ensoillement : " );
   Serial.print(luxValue);
   Serial.println(" lux");
 }
@@ -261,7 +261,7 @@ void humidify_reader(){
 
     humidifyValue = data[0] + (data[1] / 256.0);
     temperatureValue = data [2] + (data[3] / 256.0);
-    Serial.printf(" Humidite = %4.0f \%%  Temperature = %4.2f degre \n", humidifyValue, temperatureValue);
+    Serial.printf("Humidite = %4.0f \%%  Temperature = %4.2f degre \n", humidifyValue, temperatureValue);
 }
 
 // =====================================================

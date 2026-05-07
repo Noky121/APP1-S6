@@ -33,6 +33,7 @@ void connectToServer(BLEAddress pAddress) {
   Serial.println("Connecting to server...");
   
   pClient->connect(pAddress);
+  pClient->setMTU(200);
   
   BLERemoteService* pRemoteService = pClient->getService(SERVICE_UUID);
   if (pRemoteService == nullptr) {
@@ -63,6 +64,7 @@ void connectToServer(BLEAddress pAddress) {
 void setup() {
   Serial.begin(115200);
   BLEDevice::init("Base Station E26");
+  BLEDevice::setMTU(200);
 }
 
 void loop() {
