@@ -25,7 +25,7 @@ float luxValue = 0;
 float humidifyValue = 0;
 float temperatureValue = 0;
 float pressureValue = 0;
-float windDirValue = 0;
+String windDirValue = "";
 float windSpeedValue = 0;
 float rainValue = 0;
 
@@ -56,7 +56,7 @@ class MyServerCallbacks : public BLEServerCallbacks {
 class MyCallbacks : public BLECharacteristicCallbacks {
   void onWrite(BLECharacteristic *pCharacteristic) {
 
-    std::string value = pCharacteristic->getValue();
+    String value = pCharacteristic->getValue();
     Serial.println("Requête reçue du client");
     if (value.length() > 0 && value[0] == 1) {
       String dataToSend =
@@ -64,8 +64,8 @@ class MyCallbacks : public BLECharacteristicCallbacks {
         "|H:" + String(humidifyValue, 1) + "%" +
         "|T:" + String(temperatureValue, 1) + "C" +
         "|P:" + String(pressureValue, 0) + "Pa" +
-        "|WS:" + String(windSpeedValue, 1) + "m/s" +
-        "|WD:" + String(windDirValue, 0) + "deg" +
+        "|WS:" + String(windSpeedValue, 1) + "km/h" +
+        "|WD:" + windDirValue + "deg" +
         "|R:" + String(rainValue, 2) + "mm";
 
       Serial.println("Envoi BLE : " + dataToSend);
@@ -196,15 +196,15 @@ void lumino_reader() {
 
   luxValue = pow((500000.0 / resistance), 1.4);
 
-  // // exemple de calibration
-  // float lux = 0.1 * valeur;  
-  Serial.print("Voltage : ");
-  Serial.print(voltage);
-  Serial.println(" V");
+  // // // exemple de calibration
+  // // float lux = 0.1 * valeur;  
+  // Serial.print("Voltage : ");
+  // Serial.print(voltage);
+  // Serial.println(" V");
 
-  Serial.print("Resistance LDR : ");
-  Serial.print(resistance);
-  Serial.println(" ohms");
+  // Serial.print("Resistance LDR : ");
+  // Serial.print(resistance);
+  // Serial.println(" ohms");
 
   Serial.print("Ensoillement : " );
   Serial.print(luxValue);
