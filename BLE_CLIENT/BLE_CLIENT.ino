@@ -3,14 +3,19 @@
 #include <BLEClient.h>
 #include <BLEUtils.h>
 
-#define SERVICE_UUID           "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"  
+#define SERVICE_UUID           "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"
 #define CHARACTERISTIC_UUID_RX "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"
 #define CHARACTERISTIC_UUID_TX "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"
 
-BLEClient* pClient;
-BLERemoteCharacteristic* pRxCharacteristic;
-bool connected = false;
+BLEClient* pClient = nullptr;
+BLERemoteCharacteristic* pRxCharacteristic = nullptr;
 
+bool connected = false;
+volatile bool newDataAvailable = false;
+
+// =====================================================
+// NOTIFICATION CALLBACK
+// =====================================================
 static void notifyCallback(
   BLERemoteCharacteristic* pBLERemoteCharacteristic,
   uint8_t* pData,
@@ -24,84 +29,187 @@ static void notifyCallback(
   }
 
   Serial.println(data);
-  Serial.println("=======================");
+  if (data.indexOf("NEW_DATA") >= 0){
+    newDataAvailable = true;
+  }
+  else {
+
+    Serial.println("=======================");
+  }
 }
 
+// =====================================================
+// CLIENT CALLBACKS
+// =====================================================
+class MyClientCallback : public BLEClientCallbacks {
 
+  void onConnect(BLEClient* pclient) {
+
+    Serial.println("BLE Connected");
+  }
+
+  void onDisconnect(BLEClient* pclient) {
+
+    Serial.println("BLE Disconnected");
+
+    connected = false;
+  }
+};
+
+// =====================================================
+// CONNECT TO SERVER
+// =====================================================
 void connectToServer(BLEAddress pAddress) {
-  pClient = BLEDevice::createClient();
+
   Serial.println("Connecting to server...");
-  
-  pClient->connect(pAddress);
+
+  pClient = BLEDevice::createClient();
+
+  pClient->setClientCallbacks(new MyClientCallback());
+
+  // Connect
+  if (!pClient->connect(pAddress)) {
+
+    Serial.println("Connection failed");
+
+    connected = false;
+
+    return;
+  }
+
+  // Increase MTU
   pClient->setMTU(200);
-  
-  BLERemoteService* pRemoteService = pClient->getService(SERVICE_UUID);
+
+  // Get BLE service
+  BLERemoteService* pRemoteService =
+    pClient->getService(SERVICE_UUID);
+
   if (pRemoteService == nullptr) {
-    Serial.println("Failed to find our service UUID");
+
+    Serial.println("Failed to find service UUID");
+
+    pClient->disconnect();
+
     return;
   }
 
-  BLERemoteCharacteristic* pRemoteCharacteristic = pRemoteService->getCharacteristic(CHARACTERISTIC_UUID_TX);
-  if (pRemoteCharacteristic == nullptr) {
+  // TX characteristic (notifications from server)
+  BLERemoteCharacteristic* pTxCharacteristic =
+    pRemoteService->getCharacteristic(CHARACTERISTIC_UUID_TX);
+
+  if (pTxCharacteristic == nullptr) {
+
     Serial.println("Failed to find TX characteristic");
+
+    pClient->disconnect();
+
     return;
   }
 
-  if(pRemoteCharacteristic->canNotify())
-    pRemoteCharacteristic->registerForNotify(notifyCallback);
+  // Enable notifications
+  if (pTxCharacteristic->canNotify()) {
 
-  pRxCharacteristic = pRemoteService->getCharacteristic(CHARACTERISTIC_UUID_RX);
+    pTxCharacteristic->registerForNotify(notifyCallback);
+
+    Serial.println("Notifications enabled");
+  }
+
+  // RX characteristic (write requests to server)
+  pRxCharacteristic =
+    pRemoteService->getCharacteristic(CHARACTERISTIC_UUID_RX);
+
   if (pRxCharacteristic == nullptr) {
+
     Serial.println("Failed to find RX characteristic");
+
+    pClient->disconnect();
+
     return;
   }
 
   connected = true;
+
   Serial.println("Connected to BLE server!");
 }
 
-
+// =====================================================
+// SETUP
+// =====================================================
 void setup() {
+
   Serial.begin(115200);
+
   BLEDevice::init("Base Station E26");
+
   BLEDevice::setMTU(200);
+
+  Serial.println("BLE Client Started");
 }
 
+// =====================================================
+// LOOP
+// =====================================================
 void loop() {
 
+  // ==========================================
+  // NOT CONNECTED -> SCAN
+  // ==========================================
   if (!connected) {
 
-    Serial.println("Scan BLE...");
+    Serial.println("Scanning BLE...");
 
     BLEScan* scan = BLEDevice::getScan();
+
     scan->setActiveScan(true);
 
     BLEScanResults* results = scan->start(2, false);
 
     for (int i = 0; i < results->getCount(); i++) {
 
-      BLEAdvertisedDevice device = results->getDevice(i);
+      BLEAdvertisedDevice device =
+        results->getDevice(i);
 
+      Serial.print("Found device: ");
+      Serial.println(device.getName().c_str());
+
+      // Find target server
       if (device.getName() == "UART Sensors Station E26") {
 
+        Serial.println("Target device found!");
+
         connectToServer(device.getAddress());
+
         break;
       }
     }
 
     delay(2000);
   }
+
+  // ==========================================
+  // CONNECTED -> SEND REQUESTS
+  // ==========================================
   else {
 
-    // ===============================
-    // REQUÊTE UART VERS CAPTEUR
-    // ===============================
-    uint8_t request = 1;  // commande simple "GET DATA"
+    // Safety check
+    if (!pClient->isConnected()) {
 
-    pRxCharacteristic->writeValue(&request, 1);
+      Serial.println("Connection lost");
 
-    Serial.println("Requête envoyée au capteur");
+      connected = false;
 
-    delay(2000); // période de polling
+      return;
+    }
+
+    if (newDataAvailable) {
+
+      uint8_t request = 1;
+
+      pRxCharacteristic->writeValue(&request, 1);
+
+      Serial.println("Request sent to sensors station");
+
+      newDataAvailable = false;
+    }
   }
 }
