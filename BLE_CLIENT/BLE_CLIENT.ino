@@ -7,6 +7,8 @@
 #define CHARACTERISTIC_UUID_RX "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"
 #define CHARACTERISTIC_UUID_TX "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"
 
+HardwareSerial UARTLink(2);
+
 BLEClient* pClient = nullptr;
 BLERemoteCharacteristic* pRxCharacteristic = nullptr;
 
@@ -144,6 +146,8 @@ void setup() {
   BLEDevice::setMTU(200);
 
   Serial.println("BLE Client Started");
+
+  UARTLink.begin(115200, SERIAL_8N1, 25, 26);
 }
 
 // =====================================================
@@ -211,5 +215,18 @@ void loop() {
 
       newDataAvailable = false;
     }
+
+    UARTLink.println("GET_DATA");
+
+    delay(500);
+
+    while (UARTLink.available()) {
+
+      String data = UARTLink.readStringUntil('\n');
+
+      Serial.println("UART RX: " + data);
+    }
+
+    delay(2000);
   }
 }

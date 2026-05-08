@@ -29,6 +29,8 @@ String windDirValue = "";
 float windSpeedValue = 0;
 float rainValue = 0;
 
+// ---------- UART Configuration ------------
+HardwareSerial UARTLink(2);
 
 // ----------BLE Configuration --------------
 BLEServer *pServer = NULL;
@@ -111,6 +113,8 @@ void setup(){
   Serial.println("DPS310 ready !");
   Serial.println("Meteo station ready...");
 
+  UARTLink.begin(115200, SERIAL_8N1, 25, 26);
+
   Serial.println("Initialisation Sensors Station E26...");
   BLEDevice::init("UART Sensors Station E26");
   BLEDevice::setMTU(200);
@@ -145,7 +149,35 @@ void setup(){
 }
 
 void loop () {
-   // Lecture générale toutes les 2 secondes
+  
+  // ==========================================
+  // UART REQUESTS
+  // ==========================================
+  if (UARTLink.available()) {
+
+    String request = UARTLink.readStringUntil('\n');
+    request.trim();
+    
+    if (request == "GET_DATA") {
+
+     String dataToSend =
+        "L:"  + String(luxValue, 1) + "lx" +
+        "|H:" + String(humidifyValue, 1) + "%" +
+        "|T:" + String(temperatureValue, 1) + "C" +
+        "|P:" + String(pressureValue, 0) + "Pa" +
+        "|WS:" + String(windSpeedValue, 1) + "km/h" +
+        "|WD:" + windDirValue +
+        "|R:" + String(rainValue, 2) + "mm";
+
+      UARTLink.println(dataToSend);
+
+      Serial.println("UART sent: " + dataToSend);
+    }
+  }
+
+  // ==========================================
+  // SENSOR UPDATE EVERY 2 SEC
+  // ==========================================
   if (millis() - lastSensorRead >= 2000) {
 
     Serial.println("==============================");
@@ -193,6 +225,8 @@ void lumino_reader() {
 
   float voltage = (valeur / 4095.0) * 3.3;
 
+  if (voltage < 0.01) return;
+
   float resistance = 10000.0 * ((3.3 / voltage) - 1.0);
 
   luxValue = pow((500000.0 / resistance), 1.4);
@@ -223,8 +257,6 @@ void humidify_reader(){
     float humidite;
     float temperature;
     int broche = 16;
-
-    delay(1000);
     
     pinMode(broche, OUTPUT_OPEN_DRAIN);
     digitalWrite(broche, HIGH);
