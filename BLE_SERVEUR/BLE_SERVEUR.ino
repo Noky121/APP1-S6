@@ -28,6 +28,7 @@ float pressureValue = 0;
 String windDirValue = "";
 float windSpeedValue = 0;
 float rainValue = 0;
+bool waitingClient = false;
 
 // ---------- UART Configuration ------------
 HardwareSerial UARTLink(2);
@@ -57,24 +58,6 @@ class MyServerCallbacks : public BLEServerCallbacks {
 
 class MyCallbacks : public BLECharacteristicCallbacks {
   void onWrite(BLECharacteristic *pCharacteristic) {
-
-    String value = pCharacteristic->getValue();
-    Serial.println("Request received from client");
-    if (value.length() > 0 && value[0] == 1) {
-      String dataToSend =
-        "L:"  + String(luxValue, 1) + "lx" +
-        "|H:" + String(humidifyValue, 1) + "%" +
-        "|T:" + String(temperatureValue, 1) + "C" +
-        "|P:" + String(pressureValue, 0) + "Pa" +
-        "|WS:" + String(windSpeedValue, 1) + "km/h" +
-        "|WD:" + windDirValue +
-        "|R:" + String(rainValue, 2) + "mm";
-
-      Serial.println("Sent BLE : " + dataToSend);
-
-      pTxCharacteristic->setValue(dataToSend.c_str());
-      pTxCharacteristic->notify();
-    }
   }
 };
 
@@ -157,7 +140,7 @@ void loop () {
 
     String request = UARTLink.readStringUntil('\n');
     request.trim();
-    
+
     if (request == "GET_DATA") {
 
      String dataToSend =
@@ -170,6 +153,7 @@ void loop () {
         "|R:" + String(rainValue, 2) + "mm";
 
       UARTLink.println(dataToSend);
+      waitingClient = false;
 
       Serial.println("UART sent: " + dataToSend);
     }
@@ -190,10 +174,11 @@ void loop () {
 
     wind_water_orientation_sensor();
 
-    if (deviceConnected) {
+    if (deviceConnected && !waitingClient) {
       Serial.println("Notify NEW_DATA Available");
       pTxCharacteristic->setValue("NEW_DATA Available");
       pTxCharacteristic->notify();
+      waitingClient = true;
     }
 
     lastSensorRead = millis();
@@ -215,7 +200,7 @@ void loop () {
 }
 
 // =====================================================
-// Ensoleillement
+// Sunshine
 // =====================================================
 void lumino_reader() {
   int valeur = analogRead(capteurPin);
@@ -231,8 +216,8 @@ void lumino_reader() {
 
   luxValue = pow((500000.0 / resistance), 1.4);
 
-  // // // exemple de calibration
-  // // float lux = 0.1 * valeur;  
+  // // exemple de calibration
+  // float lux = 0.1 * valeur;  
   // Serial.print("Voltage : ");
   // Serial.print(voltage);
   // Serial.println(" V");
@@ -241,7 +226,7 @@ void lumino_reader() {
   // Serial.print(resistance);
   // Serial.println(" ohms");
 
-  Serial.print(" Sunshine : " );
+  Serial.print("Sunshine : " );
   Serial.print(luxValue);
   Serial.println(" lux");
 }

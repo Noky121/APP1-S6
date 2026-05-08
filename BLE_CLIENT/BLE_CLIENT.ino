@@ -194,39 +194,73 @@ void loop() {
   // CONNECTED -> SEND REQUESTS
   // ==========================================
   else {
+     if (newDataAvailable) {
 
-    // Safety check
-    if (!pClient->isConnected()) {
+      UARTLink.println("GET_DATA");
+      Serial.println("Request sent to get Data");
+      unsigned long start = millis();
 
-      Serial.println("Connection lost");
+      while (!UARTLink.available()) {
+        if (millis() - start > 3000) {
+          Serial.println("UART Timeout");
+          return;
+        }
+      }
 
-      connected = false;
+      String response = UARTLink.readStringUntil('\n');
 
-      return;
-    }
-
-    if (newDataAvailable) {
-
-      uint8_t request = 1;
-
-      pRxCharacteristic->writeValue(&request, 1);
-
-      Serial.println("Request sent to sensors station");
+      Serial.println("UART DATA:");
+      Serial.println(response);
 
       newDataAvailable = false;
     }
-
-    UARTLink.println("GET_DATA");
-
-    delay(500);
-
-    while (UARTLink.available()) {
-
-      String data = UARTLink.readStringUntil('\n');
-
-      Serial.println("UART RX: " + data);
-    }
-
-    delay(2000);
   }
 }
+ 
+
+
+
+  //  // Safety check
+  //   if (!pClient->isConnected()) {
+
+  //     Serial.println("Connection lost");
+
+  //     connected = false;
+
+  //     return;
+  //   }
+
+  //   if (newDataAvailable) {
+
+  //     uint8_t request = 1;
+
+  //     pRxCharacteristic->writeValue(&request, 1);
+
+  //     Serial.println("Request sent to sensors station");
+
+  //     newDataAvailable = false;
+  //   }
+  // UARTLink.println("GET_DATA");
+
+  // Serial.println("Request sent");
+
+  // unsigned long start = millis();
+
+  //   while (!UARTLink.available()) {
+
+  //     if (millis() - start > 2000) {
+
+  //       Serial.println("Timeout");
+
+  //       return;
+  //     }
+  //   }
+
+  //   String response = UARTLink.readStringUntil('\n');
+
+  //   Serial.println("Received:");
+  //   Serial.println(response);
+
+  //   delay(3000);
+
+  // }
