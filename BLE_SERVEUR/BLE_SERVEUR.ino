@@ -44,6 +44,13 @@ uint8_t txValue = 0;
 #define CHARACTERISTIC_UUID_RX "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"
 #define CHARACTERISTIC_UUID_TX "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"
 
+// Résistance fixe du pont diviseur
+const float R_FIXED = 10000.0f;
+
+// ADC ESP32
+const float ADC_MAX = 4095.0f;
+const float VCC = 3.3f;
+
 class MyServerCallbacks : public BLEServerCallbacks {
   void onConnect(BLEServer *pServer) {
     deviceConnected = true;
@@ -142,7 +149,7 @@ void loop () {
     request.trim();
 
     if (request == "GET_DATA") {
-
+     Serial.println("Received from client: " + request);
      String dataToSend =
         "L:"  + String(luxValue, 1) + "lx" +
         "|H:" + String(humidifyValue, 1) + "%" +
@@ -174,7 +181,7 @@ void loop () {
 
     wind_water_orientation_sensor();
 
-    if (deviceConnected && !waitingClient) {
+    if (deviceConnected  && !waitingClient){
       Serial.println("Notify NEW_DATA Available");
       pTxCharacteristic->setValue("NEW_DATA Available");
       pTxCharacteristic->notify();
@@ -226,7 +233,7 @@ void lumino_reader() {
   // Serial.print(resistance);
   // Serial.println(" ohms");
 
-  Serial.print("Sunshine : " );
+  Serial.print(" Sunshine : " );
   Serial.print(luxValue);
   Serial.println(" lux");
 }
@@ -331,17 +338,66 @@ void wind_water_orientation_sensor(){
     Serial.print("Rain : "); Serial.print(rainValue); Serial.println(" mm");
 }
 
+struct VaneEntry {
+    float resistance;
+    float angle;
+    const char* label;
+};
+
+// Table datasheet
+static const VaneEntry VANE_TABLE[] = {
+    {  33000, 0.0,   "N"   },
+    {   6570, 22.5,  "NNE" },
+    {   8200, 45.0,  "NE"  },
+    {    891, 67.5,  "ENE" },
+    {   1000, 90.0,  "E"   },
+    {    688, 112.5, "ESE" },
+    {   2200, 135.0, "SE"  },
+    {   1410, 157.5, "SSE" },
+    {   3900, 180.0, "S"   },
+    {   3140, 202.5, "SSO" },
+    {  16000, 225.0, "SO"  },
+    {  14120, 247.5, "OSO" },
+    { 120000, 270.0, "O"   },
+    {  42120, 292.5, "ONO" },
+    {  64900, 315.0, "NO"  },
+    {  21880, 337.5, "NNO" },
+};
+
+
 // =====================================================
 // DIRECTION VENT
 // =====================================================
-String getWindDirection(int value) {
+String getWindDirection(int adc) 
+{
+  // Protection
+  if (adc <= 0 || adc >= 4095)
+    return "INVALIDE";
 
-  if (value < 500) return "S";
-  else if (value < 1000) return "SW";
-  else if (value < 1500) return "W";
-  else if (value < 2000) return "NW";
-  else if (value < 2500) return "N";
-  else if (value < 3000) return "NE";
-  else if (value < 3500) return "E";
-  else return "SE";
+    // Conversion ADC -> tension
+    float voltage = (adc / ADC_MAX) * VCC;
+
+    // Calcul résistance girouette
+    // Formule pont diviseur:
+    // Vout = VCC * (Rvane / (Rvane + R_FIXED))
+
+    float rvane = (voltage * R_FIXED) / (VCC - voltage);
+
+    // Recherche de la résistance la plus proche
+    int bestIndex = 0;
+    float bestError = fabs(rvane - VANE_TABLE[0].resistance);
+
+    for (int i = 1; i < 16; i++)
+    {
+        float error = fabs(rvane - VANE_TABLE[i].resistance);
+
+        if (error < bestError)
+        {
+            bestError = error;
+            bestIndex = i;
+        }
+    }
+
+  return String(VANE_TABLE[bestIndex].label);
+
 }
