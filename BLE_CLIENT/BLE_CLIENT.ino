@@ -209,7 +209,7 @@ void loop() {
 
       String response = UARTLink.readStringUntil('\n');
 
-      Serial.print("UART DATA RECEIVED:");
+      Serial.print("UART DATA RECEIVED: ");
       Serial.println(response);
 
       newDataAvailable = false;

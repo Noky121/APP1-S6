@@ -181,7 +181,7 @@ void loop () {
 
     wind_water_orientation_sensor();
 
-    if (deviceConnected  && !waitingClient){
+    if (deviceConnected){
       Serial.println("Notify NEW_DATA Available");
       pTxCharacteristic->setValue("NEW_DATA Available");
       pTxCharacteristic->notify();
