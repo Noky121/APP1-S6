@@ -103,7 +103,7 @@ void setup(){
   Serial.println("DPS310 ready !");
   Serial.println("Meteo station ready...");
 
-  UARTLink.begin(115200, SERIAL_8N1, 25, 26);
+  UARTLink.begin(115200, SERIAL_8N1, 4, 13);
 
   Serial.println("Initialisation Sensors Station E26...");
   BLEDevice::init("UART Sensors Station E26");
